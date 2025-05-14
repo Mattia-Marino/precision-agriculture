@@ -1,2 +1,2 @@
 # precision-agriculture
-Progetto per il corso di Misure sulle Reti per il Corso di Laurea Magistrale all'Università degli Studi del Sannio
+Lo scopo di questo progetto è l'operazione di una stazione meteo MaxiMet GMX240 con sensore ausiliario di umidità ATMOS 14 alimentata dalla rete e collegata ad una scheda a microcontrollore STMicroelectronics B-L072Z-LRWAN1 con capacità di comunicazione LoRa, comunicante con un'altra scheda che avrà funzionalità da gateway. L'obiettivo è interfacciare i microcontrollori con i sensori della stazione meteo (irraggiamento, vento, umidità, temperatura) per raccogliere i dati in modo distribuito ed effettuare monitoraggio in real-time per assistere nell'agricoltura di precisione.
