@@ -1,0 +1,6 @@
+ARANCIONE - 5 (RS232 TXD)
+MARRONE - 7 (RS232 RXD)
+BLU - 1 (Terra)
+ROSSO - 8 (Comms)
+GIALLO - 2 (Supply +ve)
+VIOLA - 3 (Supply -ve)
