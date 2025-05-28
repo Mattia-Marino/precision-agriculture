@@ -1,47 +1,54 @@
 #include <AltSoftSerial.h>
 #include <SDI12.h>
 
-AltSoftSerial gmxSerial; // Pin 8 = RX, Pin 9 = TX
-const int sdiPin = 7;    // ATMOS14 SDI-12 data line
+// GMX240: AltSoftSerial (8 = RX, 9 = TX)
+AltSoftSerial gmxSerial;
+
+// ATMOS14: SDI12 (data pin 7)
+const int sdiPin = 7;
 SDI12 sdi(sdiPin);
 
-const unsigned long interval = 10000;
+const unsigned long interval = 10000; // ogni 10 secondi
 unsigned long previousMillis = 0;
 
 const int bufferSize = 150;
 char gmxBuffer[bufferSize];
 
 void setup() {
-  Serial.begin(9600);        // Monitor seriale
-  gmxSerial.begin(19200);    // GMX240 baud rate
-  sdi.begin();               // SDI-12 setup
+  // Inizializza la Serial (hardware) per LoRa
+  Serial.begin(9600);
+  delay(1000); // attesa avvio LoRa
+  
+  // Inizializza GMX240
+  gmxSerial.begin(19200);
 
-  delay(2000);
-  Serial.println("Sistema pronto.");
+  // Inizializza SDI-12
+  sdi.begin();
+
+  delay(2000); // attesa dispositivi
 }
 
 void loop() {
   unsigned long currentMillis = millis();
-
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
-    leggiGMX240();
-    Serial.println("\n\r");
-    leggiATMOS14();
-    Serial.println("\n\r");
+    String gmxData = leggiGMX240();
+    String atmosData = leggiATMOS14();
 
+    String messaggio = atmosData + "," + gmxData;
+
+    Serial.println(messaggio);  // Invio al modulo LoRa
   }
 }
 
-void leggiGMX240() {
-  // Svuota buffer
+// ======================= GMX240 =========================
+
+String leggiGMX240() {
+  // Svuota eventuali dati precedenti
   while (gmxSerial.available()) gmxSerial.read();
 
   gmxSerial.print("Q\r\n");
-  Serial.println("Comando 'Q' inviato al GMX240...");
-  Serial.println("\n\r");
-
 
   int i = 0;
   unsigned long timeout = millis();
@@ -55,25 +62,20 @@ void leggiGMX240() {
         break;
       }
       gmxBuffer[i++] = c;
-      timeout = millis();  // resetta il timeout
+      timeout = millis(); // reset timeout
     }
   }
 
-  gmxBuffer[i] = '\0';  // termina stringa
-
   if (rispostaRicevuta) {
-    Serial.println("Dati GMX240:");
-    parseGMX(gmxBuffer);
+    return String(gmxBuffer);
   } else {
-    Serial.println("Nessuna risposta dal GMX240.");
+    return "GMX:NODATA";
   }
 }
 
-void leggiATMOS14() {
-  Serial.println("Richiesta dati da ATMOS 14 (SDI-12)...");
+// ======================= ATMOS14 ========================
 
-  sdi.sendCommand("0M!");
-  delay(1500); // attesa misura completa
+String leggiATMOS14() {
 
   sdi.sendCommand("0D0!");
   delay(500);
@@ -84,84 +86,11 @@ void leggiATMOS14() {
     risposta += c;
   }
 
-  risposta.trim(); // rimuove spazi o newline finali
+  risposta.trim();
 
   if (risposta.length() > 0) {
-
-    // Parsing basato su '+'
-    char raw[100];
-    risposta.toCharArray(raw, sizeof(raw));
-
-    char* token = strtok(raw, "+");
-    int campo = 0;
-
-    while (token != NULL) {
-      switch (campo) {
-        case 1:
-          Serial.print("Pressione vapore (hPa): ");
-          Serial.println(token);
-          break;
-        case 2:
-          Serial.print("Temperatura (°C): ");
-          Serial.println(token);
-          break;
-        case 3:
-          Serial.print("Umidità relativa (%): ");
-          Serial.println(token);
-          break;
-        case 4:
-          Serial.print("Pressione barometrica (hPa): ");
-          Serial.println(token);
-          break;
-      }
-
-      token = strtok(NULL, "+");
-      campo++;
-    }
+    return risposta;
   } else {
-    Serial.println("Nessuna risposta da ATMOS 14.");
-  }
-}
-
-void parseGMX(char* line) {
-  const int numFields = 12;
-  const char* labels[numFields] = {
-    "NODE", "DIR", "SPEED", "CDIR", "CSPEED",
-    "TOTAL PRECIP", "PRECIP INTENSITY", "GPS LOCATION",
-    "TIME", "VOLT", "STATUS", "CHECK"
-  };
-
-  int fieldIndex = 0;
-  char* token = strtok(line, ",");
-
-  Serial.println("Parsing dati GMX240:");
-  while (token != NULL && fieldIndex < numFields) {
-    Serial.print(labels[fieldIndex]);
-    Serial.print(": ");
-
-    if (fieldIndex == 8) {
-      formatTime(token);
-    } else {
-      Serial.println(token);
-    }
-
-    token = strtok(NULL, ",");
-    fieldIndex++;
-  }
-}
-
-void formatTime(const char* rawTime) {
-  if (strlen(rawTime) >= 14) {
-    char buffer[25];
-    snprintf(buffer, sizeof(buffer), "%c%c%c%c-%c%c-%c%c %c%c:%c%c:%c%c",
-             rawTime[0], rawTime[1], rawTime[2], rawTime[3],
-             rawTime[4], rawTime[5],
-             rawTime[6], rawTime[7],
-             rawTime[8], rawTime[9],
-             rawTime[10], rawTime[11],
-             rawTime[12], rawTime[13]);
-    Serial.println(buffer);
-  } else {
-    Serial.println(rawTime);
+    return "ATMOS:NODATA";
   }
 }
